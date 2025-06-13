@@ -16,7 +16,7 @@ CORS(app) # 啟用 CORS，允許前端從不同網域發送請求
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") # 從環境變數 GEMINI_API_KEY 讀取
 
-GEMINI_API_URL = "AIzaSyCEv4Mv6VmGIVl3ozaFh0HYB5TDq714IQE"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 # --- 檔案解析函數 ---
 
