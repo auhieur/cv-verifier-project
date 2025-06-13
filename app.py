@@ -16,7 +16,7 @@ CORS(app) # 啟用 CORS，允許前端從不同網域發送請求
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") # 從環境變數 GEMINI_API_KEY 讀取
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 # --- 檔案解析函數 ---
 
@@ -145,7 +145,12 @@ def call_gemini_api(cv_content):
     }
 
     try:
-        response = requests.post(f"{GEMINI_API_URL}?key={GEMINI_API_KEY}", headers=headers, data=json.dumps(payload))
+        response = requests.post(
+    f"{_GEMINI_BASE_URL}?key={GEMINI_API_KEY}", 
+    headers=headers, 
+    data=json.dumps(payload),
+    timeout=60 # 設置請求超時為 60 秒
+    )
         response.raise_for_status() # 如果響應狀態碼不是 2xx，則引發 HTTPError
         return response.json()
     except requests.exceptions.RequestException as e:
