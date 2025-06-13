@@ -156,6 +156,11 @@ def call_gemini_api(cv_content):
 
 # --- Flask 路由 ---
 
+# 新增的健康檢查路由
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok"}), 200
+
 @app.route('/upload_cv', methods=['POST'])
 def upload_cv():
     if 'cvFile' not in request.files:
@@ -213,7 +218,7 @@ def upload_cv():
         print(f"伺服器內部錯誤: {e}")
         return jsonify({"error": f"伺服器內部錯誤: {e}"}), 500
 
-# Fly.io 會將請求發送到 $PORT 環境變數指定的埠號
+# Fly.io/Render 會將請求發送到 $PORT 環境變數指定的埠號
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port, debug=True)
