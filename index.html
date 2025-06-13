@@ -1,0 +1,339 @@
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV履歷驗證器</title>
+    <!-- 引入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定義字體，確保整體風格一致 */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div class="bg-white rounded-xl shadow-2xl p-6 sm:p-8 lg:p-10 w-full max-w-4xl">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-6 text-center">
+            CV履歷驗證器
+        </h1>
+
+        <!-- 履歷輸入區塊 -->
+        <div class="mb-6">
+            <label for="cv-input" class="block text-lg font-semibold text-gray-700 mb-2">
+                請在此貼上或輸入履歷內容：
+            </label>
+            <textarea
+                id="cv-input"
+                class="w-full p-4 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800 resize-y min-h-[200px]"
+                placeholder="例如：
+姓名：王小明
+學歷：國立台灣大學 電機工程學系 碩士 (2020)
+工作經驗：
+  - Google 軟體工程師 (2020-2023)
+  - Microsoft 實習生 (2019)
+比賽：
+  - 2019年全國AI程式設計大賽 冠軍
+獎項：
+  - 2020年傑出青年獎"
+            ></textarea>
+        </div>
+
+        <!-- 檔案上傳區塊 -->
+        <div class="mb-6">
+            <label for="file-upload" class="block text-lg font-semibold text-gray-700 mb-2">
+                或上傳履歷檔案 (.txt, .pdf, .docx 格式):
+            </label>
+            <input
+                type="file"
+                accept=".txt,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                class="hidden"
+                id="file-upload"
+            />
+            <label
+                for="file-upload"
+                class="cursor-pointer inline-flex items-center px-6 py-3 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+                id="file-upload-label"
+            >
+                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clip-rule="evenodd" />
+                </svg>
+                選擇檔案
+            </label>
+            <p id="file-status-message" class="text-sm text-gray-500 mt-2 hidden">
+                檔案已載入，您可以修改內容或直接進行驗證。
+            </p>
+        </div>
+
+        <!-- 錯誤訊息顯示 -->
+        <div id="error-message" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4 hidden" role="alert">
+            <span id="error-text"></span>
+        </div>
+
+        <!-- 驗證按鈕 -->
+        <div class="flex justify-center mb-6">
+            <button
+                id="verify-button"
+                class="w-full sm:w-auto px-8 py-3 rounded-lg text-lg font-bold transition duration-300 ease-in-out transform bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg hover:-translate-y-1"
+            >
+                驗證履歷
+            </button>
+        </div>
+
+        <!-- 驗證結果顯示區塊 -->
+        <div id="verification-result-section" class="mt-8 border-t border-gray-200 pt-8 hidden">
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 text-center">
+                驗證結果
+            </h2>
+            <div id="discrepancies-container">
+                <!-- 疑點結果將在此處動態載入 -->
+            </div>
+        </div>
+
+        <!-- 備註區塊 -->
+        <div class="mt-8 pt-6 border-t border-gray-200 text-gray-600 text-sm text-center">
+            <p class="mb-2">
+                <span class="font-semibold">備註:</span> 本工具利用大型語言模型模擬驗證過程。
+                實際的公開資訊搜尋和比對需要更複雜的後端服務和資料庫整合。
+            </p>
+            <p>
+                驗證結果僅供參考，最終核實請務必透過官方渠道進行。
+            </p>
+            <p class="mt-2 text-xs">
+                檔案解析目前由 Python 後端服務處理。
+            </p>
+        </div>
+    </div>
+
+    <script type="module">
+        // 取得 DOM 元素
+        const cvInput = document.getElementById('cv-input');
+        const fileUpload = document.getElementById('file-upload');
+        const fileUploadLabel = document.getElementById('file-upload-label');
+        const fileStatusMessage = document.getElementById('file-status-message');
+        const verifyButton = document.getElementById('verify-button');
+        const errorMessageDiv = document.getElementById('error-message');
+        const errorTextSpan = document.getElementById('error-text');
+        const verificationResultSection = document.getElementById('verification-result-section');
+        const discrepanciesContainer = document.getElementById('discrepancies-container');
+
+        // Python 後端服務的 URL (請替換為您 Fly.io 服務的實際網址)
+        const BACKEND_URL = 'https://cv-verifier-backend.onrender.com'; 
+        // 範例: 'https://your-app-name.fly.dev/upload_cv'
+
+        // 狀態變數
+        let cvText = ''; // 這個將用於手動輸入，或顯示從後端獲取的內容
+        let isLoading = false; // 用於驗證過程 (與後端通訊)
+        let isFileSelected = false; // 用於判斷是否有檔案被選擇
+
+        // --- 輔助函數 ---
+
+        // 顯示錯誤訊息
+        function displayError(message) {
+            errorTextSpan.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+            console.error("錯誤訊息:", message);
+        }
+
+        // 清除錯誤訊息
+        function clearError() {
+            errorMessageDiv.classList.add('hidden');
+            errorTextSpan.textContent = '';
+        }
+
+        // 統一控制驗證按鈕的啟用/禁用狀態和樣式
+        function updateVerifyButtonState() {
+            // 如果正在載入，或手動輸入框為空且沒有選擇檔案，則禁用按鈕
+            if (isLoading || (!cvText.trim() && !isFileSelected)) {
+                verifyButton.disabled = true;
+                verifyButton.classList.add('bg-blue-400', 'cursor-not-allowed');
+                verifyButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'hover:shadow-lg', 'hover:-translate-y-1');
+            } else {
+                verifyButton.disabled = false;
+                verifyButton.classList.remove('bg-blue-400', 'cursor-not-allowed');
+                verifyButton.classList.add('bg-blue-600', 'hover:bg-blue-700', 'hover:shadow-lg', 'hover:-translate-y-1');
+            }
+        }
+
+        // 更新驗證載入狀態
+        function updateLoadingState(loading) {
+            isLoading = loading;
+            if (isLoading) {
+                verifyButton.textContent = '驗證中...';
+            } else {
+                verifyButton.textContent = '驗證履歷';
+            }
+            updateVerifyButtonState(); 
+        }
+
+        // 顯示驗證結果
+        function displayVerificationResult(result) {
+            verificationResultSection.classList.remove('hidden');
+            discrepanciesContainer.innerHTML = ''; // 清空舊結果
+
+            if (typeof result.hasDiscrepancies === 'boolean' && Array.isArray(result.discrepancies)) {
+                if (result.hasDiscrepancies) {
+                    const title = document.createElement('p');
+                    title.className = 'text-xl text-red-600 font-semibold mb-4 text-center';
+                    title.textContent = '發現潛在疑點！請仔細審核以下內容：';
+                    discrepanciesContainer.appendChild(title);
+
+                    if (result.discrepancies.length === 0) {
+                        const p = document.createElement('p');
+                        p.className = 'text-gray-700 text-center py-2';
+                        p.textContent = '雖然模型標記有潛在疑點，但未提供具體項目。';
+                        discrepanciesContainer.appendChild(p);
+                    } else {
+                        result.discrepancies.forEach((discrepancy) => {
+                            const div = document.createElement('div');
+                            div.className = 'bg-red-50 border-l-4 border-red-500 rounded-lg p-5 mb-5 shadow-sm';
+                            div.innerHTML = `
+                                <h3 class="text-xl font-bold text-red-800 mb-2">
+                                    疑點項目: <span class="font-semibold text-gray-900">${discrepancy.item || '未提供'}</span>
+                                </h3>
+                                <p class="text-gray-700 mb-2">
+                                    <span class="font-semibold text-red-700">原因:</span> ${discrepancy.reason || '未提供'}
+                                </p>
+                                ${discrepancy.organizationName ? `<p class="text-gray-700 mb-2"><span class="font-semibold">相關組織:</span> ${discrepancy.organizationName}</p>` : ''}
+                                ${discrepancy.organizationWebsite ? `<p class="text-gray-700 mb-2"><span class="font-semibold">組織網站:</span> <a href="${discrepancy.organizationWebsite}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${discrepancy.organizationWebsite}</a></p>` : ''}
+                                ${discrepancy.publicInfoLink ? `<p class="text-gray-700"><span class="font-semibold">公開資訊連結:</span> <a href="${discrepancy.publicInfoLink}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${discrepancy.publicInfoLink}</a></p>` : ''}
+                            `;
+                            discrepanciesContainer.appendChild(div);
+                        });
+                    }
+                } else { // result.hasDiscrepancies 為 false
+                    const p = document.createElement('p');
+                    p.className = 'text-xl text-green-600 font-semibold text-center py-4';
+                    p.textContent = '初步驗證未發現明顯疑點。';
+                    discrepanciesContainer.appendChild(p);
+                }
+            } else {
+                displayError('API回應的JSON結構不符預期。請確保模型輸出完全符合要求的格式。');
+                verificationResultSection.classList.add('hidden'); // 隱藏結果區塊
+            }
+        }
+
+        // 清除驗證結果
+        function clearVerificationResult() {
+            verificationResultSection.classList.add('hidden');
+            discrepanciesContainer.innerHTML = '';
+        }
+        
+        // --- 事件處理器 ---
+
+        // 處理履歷文字輸入變更
+        cvInput.addEventListener('input', (event) => {
+            cvText = event.target.value;
+            fileUpload.value = ''; // 清空檔案輸入框
+            isFileSelected = false; // 取消檔案選擇狀態
+            fileStatusMessage.classList.add('hidden');
+            clearError();
+            clearVerificationResult();
+            updateVerifyButtonState(); // 更新按鈕狀態
+        });
+
+        // 處理檔案選擇事件
+        fileUpload.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            console.log("檔案選擇事件觸發，選擇的檔案:", file ? file.name : "無");
+            clearError();
+            clearVerificationResult();
+            cvInput.value = ''; // 清空文本框
+            fileStatusMessage.classList.add('hidden'); // 預設隱藏
+
+            if (file) {
+                isFileSelected = true;
+                fileStatusMessage.textContent = `檔案已選擇: ${file.name}`;
+                fileStatusMessage.classList.remove('hidden');
+            } else {
+                isFileSelected = false;
+                fileStatusMessage.classList.add('hidden');
+            }
+            updateVerifyButtonState(); // 更新按鈕狀態
+        });
+
+        // 處理驗證按鈕點擊事件
+        verifyButton.addEventListener('click', async () => {
+            console.log("驗證按鈕點擊事件觸發。");
+            if (!cvText.trim() && !isFileSelected) { // 檢查手動輸入框內容，或檔案是否被選擇
+                displayError('請輸入履歷內容或上傳檔案以進行驗證。');
+                return;
+            }
+
+            updateLoadingState(true); // 顯示驗證中狀態
+            clearError();
+            clearVerificationResult();
+            console.log("開始發送 API 請求到 Python 後端...");
+
+            try {
+                let response;
+                if (isFileSelected && fileUpload.files.length > 0) {
+                    // 如果有檔案被選擇，則將檔案發送到後端
+                    const formData = new FormData();
+                    formData.append('cvFile', fileUpload.files[0]); // 'cvFile' 必須與 Python 後端接收的欄位名稱匹配
+
+                    response = await fetch(BACKEND_URL, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    console.log("檔案上傳請求已發送。");
+                } else if (cvText.trim()) {
+                    // 如果是手動輸入的內容，則將內容作為 TXT 檔案發送到後端
+                    const blob = new Blob([cvText], { type: 'text/plain' });
+                    const file = new File([blob], 'manual_input.txt', { type: 'text/plain' });
+                    const formData = new FormData();
+                    formData.append('cvFile', file);
+
+                    response = await fetch(BACKEND_URL, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    console.log("手動輸入內容作為 TXT 檔案發送請求。");
+                } else {
+                    // 這應該被前面的條件阻止，但作為防禦性編程
+                    displayError('無內容可供驗證。請輸入文本或選擇檔案。');
+                    return;
+                }
+
+                if (!response.ok) {
+                    // 嘗試讀取錯誤回應的 JSON，如果不是有效的 JSON，就讀取文本
+                    let errorDetails = `狀態碼: ${response.status}`;
+                    try {
+                        const errorJson = await response.json();
+                        errorDetails += `, 錯誤: ${JSON.stringify(errorJson)}`;
+                    } catch (e) {
+                        const errorText = await response.text();
+                        errorDetails += `, 錯誤文本: ${errorText.substring(0, 200)}...`;
+                    }
+                    console.error("API 回應非 200 OK，錯誤內容:", errorDetails);
+                    throw new Error(`API請求失敗 (${errorDetails})`);
+                }
+
+                const result = await response.json();
+                console.log("API 回應接收成功，原始結果:", result);
+
+                if (typeof result.hasDiscrepancies === 'boolean' && Array.isArray(result.discrepancies)) {
+                    displayVerificationResult(result);
+                    console.log("驗證結果已成功顯示。");
+                } else {
+                    displayError('後端返回的 JSON 結構不符預期。請聯繫技術支援。');
+                    console.error('後端返回的 JSON 結構不正確:', result);
+                }
+
+            } catch (err) {
+                console.error('驗證過程中發生錯誤:', err);
+                displayError(`驗證失敗: ${err.message}. 請稍後再試。`);
+            } finally {
+                updateLoadingState(false); // 隱藏驗證中狀態，確保總是執行
+                console.log("驗證流程結束 (finally block)。");
+            }
+        });
+
+        // 初始載入時確保按鈕狀態正確
+        document.addEventListener('DOMContentLoaded', () => {
+            updateVerifyButtonState();
+            console.log("頁面載入完成，初始化按鈕狀態。");
+        });
+    </script>
+</body>
+</html>
