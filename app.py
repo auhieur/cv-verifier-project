@@ -156,7 +156,7 @@ def call_gemini_api(cv_content):
         # 增加 timeout 參數，設置為 60 秒
         # 使用新的變數名稱 _GEMINI_BASE_URL
         response = requests.post(
-            f"{_GEMINI_BASE_URL}?key={GEMINI_API_KEY}", 
+            f"{GEMINI_BASE_URL}?key={GEMINI_API_KEY}", 
             headers=headers, 
             data=json.dumps(payload),
             timeout=60 # 設置請求超時為 60 秒
