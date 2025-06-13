@@ -8,7 +8,6 @@ import requests # 用於發送 HTTP 請求給 Gemini API
 import json # 用於處理 JSON 數據
 import os # 用於讀取環境變數
 
-
 app = Flask(__name__)
 CORS(app) # 啟用 CORS，允許前端從不同網域發送請求
 
@@ -16,7 +15,13 @@ CORS(app) # 啟用 CORS，允許前端從不同網域發送請求
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") # 從環境變數 GEMINI_API_KEY 讀取
 
-GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+# 將 GEMINI_API_URL 更名為 _GEMINI_BASE_URL，以避免與環境變數衝突
+_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+
+# === 新增的除錯訊息 ===
+# 這個 print 語句將幫助我們確認 Render 是否載入了最新的程式碼
+print(f"DEBUG: _GEMINI_BASE_URL is set to: {_GEMINI_BASE_URL}")
+# ========================
 
 # --- 檔案解析函數 ---
 
@@ -80,9 +85,12 @@ def extract_content_from_docx(file_stream):
 def call_gemini_api(cv_content):
     """呼叫 Gemini API 進行履歷驗證。"""
     if not GEMINI_API_KEY:
+        # 打印到控制台，因為這是後端錯誤
+        print("錯誤: GEMINI_API_KEY 環境變數未設定或為空！")
         raise ValueError("GEMINI_API_KEY 環境變數未設定。")
 
     prompt = f"""
+        您是一個專業的履歷驗證分析師。請仔細審查以下履歷內容。
         請注意，如果這是從 DOCX 文件轉換而來，內容將是 **HTML 格式**；如果是從 PDF 轉換而來，內容將嘗試保留原始的段落和行距。
         請您根據這些格式資訊來理解內容的結構（例如：標題、列表、粗體字、表格等），並識別任何潛在的造假或盜用內容，特別是關於學歷、工作經驗、比賽或獎項、證書等。
         模擬您正在搜尋公開資訊（例如：官方網站、公開資料庫、新聞報導）以驗證這些資訊的真實性。
@@ -145,19 +153,33 @@ def call_gemini_api(cv_content):
     }
 
     try:
+        # 增加 timeout 參數，設置為 60 秒
+        # 使用新的變數名稱 _GEMINI_BASE_URL
         response = requests.post(
-    f"{_GEMINI_BASE_URL}?key={GEMINI_API_KEY}", 
-    headers=headers, 
-    data=json.dumps(payload),
-    timeout=60 # 設置請求超時為 60 秒
-    )
+            f"{_GEMINI_BASE_URL}?key={GEMINI_API_KEY}", 
+            headers=headers, 
+            data=json.dumps(payload),
+            timeout=60 # 設置請求超時為 60 秒
+        )
         response.raise_for_status() # 如果響應狀態碼不是 2xx，則引發 HTTPError
         return response.json()
+    except requests.exceptions.Timeout as e:
+        print(f"錯誤: 呼叫 Gemini API 超時: {e}")
+        raise ConnectionError(f"無法連接到 Gemini API: 超時。 {e}")
     except requests.exceptions.RequestException as e:
-        print(f"呼叫 Gemini API 失敗: {e}")
-        raise ConnectionError(f"無法連接到 Gemini API: {e}")
+        # 打印更詳細的錯誤信息，包括響應文本（如果有的話）
+        error_message = f"呼叫 Gemini API 失敗: {e}"
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                error_content = e.response.json()
+                error_message += f", API回應: {error_content}"
+            except json.JSONDecodeError:
+                error_content = e.response.text
+                error_message += f", API回應文本: {error_content[:200]}..." # 只顯示前200字節
+        print(f"錯誤: {error_message}")
+        raise ConnectionError(f"無法連接到 Gemini API: {error_message}")
     except json.JSONDecodeError as e:
-        print(f"解析 Gemini API 回應失敗: {e}")
+        print(f"錯誤: 解析 Gemini API 回應失敗: {e}")
         raise ValueError(f"Gemini API 回應格式不正確: {e}")
 
 # --- Flask 路由 ---
@@ -202,7 +224,7 @@ def upload_cv():
            len(llm_response["candidates"][0]["content"]["parts"]) > 0:
             
             # 從LLM回應中提取JSON字串
-            response_text = llm_response["candidates"][0]["content"]["parts"][0]["text"]
+            response_text = llm_response["candidates"][0]["content"].parts[0].text
             
             # 解析LLM回應的JSON字串
             parsed_llm_json = json.loads(response_text)
