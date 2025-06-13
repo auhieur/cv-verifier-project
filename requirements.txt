@@ -1,6 +1,0 @@
-Flask
-Flask-Cors
-PyMuPDF
-python-docx
-requests
-gunicorn
