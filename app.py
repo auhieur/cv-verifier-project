@@ -8,6 +8,7 @@ import requests # 用於發送 HTTP 請求給 Gemini API
 import json # 用於處理 JSON 數據
 import os # 用於讀取環境變數
 
+
 app = Flask(__name__)
 CORS(app) # 啟用 CORS，允許前端從不同網域發送請求
 

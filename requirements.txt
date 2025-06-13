@@ -1,6 +1,15 @@
+<<<<<<< HEAD
 Flask
 Flask-Cors
 PyMuPDF
 python-docx
 requests
 gunicorn
+=======
+Flask
+Flask-Cors
+PyMuPDF
+python-docx
+requests
+gunicorn
+>>>>>>> 4d89684b633f01fe884ebbf69150995979209b14
