@@ -35,6 +35,12 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06); /* 內部陰影 */
         }
+
+        /* 讓備註區塊的文字稍微大一點，更易讀 */
+        .note-text {
+            font-size: 0.875rem; /* Tailwind 的 text-sm 大小 */
+            line-height: 1.25rem; /* Tailwind 的 leading-5 */
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gray-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -67,7 +73,7 @@
         <!-- 檔案上傳區塊 -->
         <div class="mb-6 rounded-xl glass-inner-section p-4">
             <label for="file-upload" class="block text-lg font-semibold text-gray-700 mb-3">
-                或上傳履歷檔案 ( txt, pdf, docx 格式):
+                或上傳履歷檔案 (.txt, .pdf, .docx 格式):
             </label>
             <input
                 type="file"
@@ -109,6 +115,7 @@
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none hover:scale-105 active:scale-95"
             >
                 <span id="button-text">驗證履歷</span>
+                <!-- Reverted SVG Spinner to simple spinning effect -->
                 <svg id="loading-spinner" class="animate-spin h-7 w-7 text-white absolute inset-1/2 -translate-x-1/2 -translate-y-1/2 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -134,7 +141,7 @@
         </div>
 
         <!-- 備註區塊 -->
-        <div class="mt-10 pt-6 border-t border-gray-200 text-gray-600 text-sm text-center">
+        <div class="mt-10 pt-6 border-t border-gray-200 text-gray-600 note-text text-center">
             <p class="mb-2 font-medium">
                 <span class="font-semibold">備註:</span> 本工具利用大型語言模型模擬驗證過程
             </p>
@@ -144,7 +151,7 @@
             <p>
                 驗證結果僅供參考，最終核實請務必透過官方渠道進行
             </p>
-            <p class="mt-3 text-xs">
+            <p class="mt-3">
                 檔案解析目前由 Python 後端服務處理
             </p>
         </div>
@@ -167,7 +174,7 @@
         const noDiscrepanciesMessage = document.getElementById('no-discrepancies-message'); // 新增的元素
 
         // Python 後端服務的 URL (請替換為您 Render 服務的實際網址)
-        const BACKEND_URL = 'https://cv-verifier-project.onrender.com/upload_cv'; 
+        const BACKEND_URL = 'https://cv-verifier-backend.onrender.com/upload_cv'; 
         // 範例: 'https://your-service-name.onrender.com/upload_cv'
 
         // 狀態變數
@@ -202,14 +209,14 @@
         function updateLoadingState(loading) {
             isLoading = loading;
             if (isLoading) {
-                buttonText.textContent = '驗證中'; // 簡短文字
+                buttonText.classList.add('hidden'); // 隱藏文字
                 loadingSpinner.classList.remove('hidden'); // 顯示 Spinner
                 verifyButton.disabled = true; // 確保按鈕禁用
             } else {
-                buttonText.textContent = '驗證履歷';
+                buttonText.classList.remove('hidden'); // 顯示文字
                 loadingSpinner.classList.add('hidden'); // 隱藏 Spinner
             }
-            updateVerifyButtonState(); // 更新按鈕樣式
+            updateVerifyButtonState(); // 更新按鈕樣式 (主要是為了處理初始狀態)
         }
 
         // 顯示驗證結果
@@ -368,8 +375,8 @@
                     displayVerificationResult(result);
                     console.log("驗證結果已成功顯示。");
                 } else {
-                    displayError('後端返回的 JSON 結構不符預期。請確保模型輸出完全符合要求的格式。');
-                    verificationResultSection.classList.add('hidden'); // 隱藏結果區塊
+                    displayError('後端返回的 JSON 結構不符預期。請聯繫技術支援。');
+                    console.error('後端返回的 JSON 結構不正確:', result);
                 }
 
             } catch (err) {
