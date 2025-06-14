@@ -11,19 +11,22 @@ import os # 用於讀取環境變數
 # 簡化 Flask app 初始化，因為它不再服務靜態文件或模板
 app = Flask(__name__)
 
-# *** 將 CORS 設定為允許所有來源 ***
-# 這將允許來自任何前端網域的請求，通常用於公開 API 或動態前端 URL
+# 將 CORS 設定為允許所有來源 (用於動態 Vercel URL)
 CORS(app)
 
 # 設定 Gemini API 金鑰
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") # 從環境變數 GEMINI_API_KEY 讀取
 
+# === 新增的除錯訊息：打印 GEMINI_API_KEY 的值 (除錯完成後務必移除！) ===
+print(f"DEBUG: Backend starting. GEMINI_API_KEY (first 5 chars): {GEMINI_API_KEY[:5]}... Length: {len(GEMINI_API_KEY)}")
+# =========================================================================
+
 # 將 GEMINI_API_URL 更名為 _GEMINI_BASE_URL，以避免與環境變數衝突
 _GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 # === 新增的除錯訊息 (保留以確認部署版本) ===
-print(f"DEBUG: Backend starting. _GEMINI_BASE_URL is set to: {_GEMINI_BASE_URL}")
+print(f"DEBUG: _GEMINI_BASE_URL is set to: {_GEMINI_BASE_URL}")
 # ===============================================
 
 # --- 檔案解析函數 ---
