@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import fitz  # PyMuPDF for PDF handling
+import fitz
 from docx import Document
 from io import BytesIO
 import requests
@@ -11,139 +11,95 @@ app = Flask(__name__)
 CORS(app)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-
-print(f"DEBUG: GEMINI_BASE_URL is set to: {GEMINI_BASE_URL}")
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
 
 def extract_text_from_pdf(file_stream):
-    try:
-        doc = fitz.open(stream=file_stream.read(), filetype="pdf")
-        full_text = ""
-        for page_num in range(doc.page_count):
-            page = doc.load_page(page_num)
-            text = page.get_text("text")
-            full_text += text.strip() + "\n\n"
-        doc.close()
-        return full_text
-    except Exception as e:
-        print(f"PDF 解析錯誤: {e}")
-        raise ValueError(f"無法解析 PDF 檔案: {e}")
+    doc = fitz.open(stream=file_stream.read(), filetype="pdf")
+    full_text = ""
+    for page_num in range(doc.page_count):
+        page = doc.load_page(page_num)
+        text = page.get_text("text")
+        full_text += text.strip() + "\n\n"
+    doc.close()
+    return full_text
 
 
 def extract_content_from_docx(file_stream):
-    try:
-        file_bytes = BytesIO(file_stream.read())
-        document = Document(file_bytes)
-        html_content = ""
-
-        for paragraph in document.paragraphs:
-            html_paragraph = "<p>"
-            for run in paragraph.runs:
-                text = run.text
-                if run.bold:
-                    text = f"<strong>{text}</strong>"
-                if run.italic:
-                    text = f"<em>{text}</em>"
-                html_paragraph += text
-            html_paragraph += "</p>"
-            html_content += html_paragraph + "\n"
-
-        for table in document.tables:
-            html_content += "<table>"
-            for row in table.rows:
-                html_content += "<tr>"
-                for cell in row.cells:
-                    cell_text = ""
-                    for p in cell.paragraphs:
-                        for run in p.runs:
-                            cell_text += run.text
-                    html_content += f"<td>{cell_text}</td>"
-                html_content += "</tr>"
-            html_content += "</table>\n"
-
-        return html_content
-    except Exception as e:
-        print(f"DOCX 解析錯誤: {e}")
-        raise ValueError(f"無法解析 DOCX 檔案: {e}")
+    file_bytes = BytesIO(file_stream.read())
+    document = Document(file_bytes)
+    html_content = ""
+    for paragraph in document.paragraphs:
+        html_paragraph = "<p>"
+        for run in paragraph.runs:
+            text = run.text
+            if run.bold:
+                text = f"<strong>{text}</strong>"
+            if run.italic:
+                text = f"<em>{text}</em>"
+            html_paragraph += text
+        html_paragraph += "</p>"
+        html_content += html_paragraph + "\n"
+    for table in document.tables:
+        html_content += "<table>"
+        for row in table.rows:
+            html_content += "<tr>"
+            for cell in row.cells:
+                cell_text = ""
+                for p in cell.paragraphs:
+                    for run in p.runs:
+                        cell_text += run.text
+                html_content += f"<td>{cell_text}</td>"
+            html_content += "</tr>"
+        html_content += "</table>\n"
+    return html_content
 
 
 def call_gemini_api(cv_content):
     if not GEMINI_API_KEY:
-        print("錯誤: GEMINI_API_KEY 環境變數未設定或為空！")
         raise ValueError("GEMINI_API_KEY 環境變數未設定。")
 
     prompt = f"""
-        您是一個專業的履歷驗證分析師。請仔細審查以下履歷內容。
-        如果這是從 DOCX 文件轉換而來，內容將是 HTML 格式；如果是從 PDF 轉換而來，內容將嘗試保留段落和行距。
-        模擬搜尋公開資訊（例如官方網站、新聞報導）驗證資訊真實性，若有疑點請以下列格式回傳：
+您是一個專業的履歷驗證分析師。請仔細審查以下履歷內容。
+如果這是從 DOCX 文件轉換而來，內容將是 HTML 格式；如果是從 PDF 轉換而來，內容將嘗試保留段落和行距。
+模擬搜尋公開資訊（例如官方網站、新聞報導）驗證資訊真實性，若有疑點請以下列格式回傳：
 
-        {{
-          "hasDiscrepancies": boolean,
-          "discrepancies": [
-            {{
-              "item": "string",
-              "reason": "string",
-              "organizationName": "string",
-              "organizationWebsite": "string",
-              "publicInfoLink": "string"
-            }}
-          ]
-        }}
+{{
+  "hasDiscrepancies": boolean,
+  "discrepancies": [
+    {{
+      "item": "string",
+      "reason": "string",
+      "organizationName": "string",
+      "organizationWebsite": "string",
+      "publicInfoLink": "string"
+    }}
+  ]
+}}
 
-        以下是履歷內容：
-        {cv_content}
-    """
+以下是履歷內容：
+{cv_content}
+"""
 
     headers = {'Content-Type': 'application/json'}
     payload = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "responseSchema": {
-                "type": "OBJECT",
-                "properties": {
-                    "hasDiscrepancies": {"type": "BOOLEAN"},
-                    "discrepancies": {
-                        "type": "ARRAY",
-                        "items": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "item": {"type": "STRING"},
-                                "reason": {"type": "STRING"},
-                                "organizationName": {"type": "STRING"},
-                                "organizationWebsite": {"type": "STRING"},
-                                "publicInfoLink": {"type": "STRING"}
-                            }
-                        }
-                    }
-                },
-                "required": ["hasDiscrepancies", "discrepancies"]
-            }
-        }
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}]
     }
 
-    try:
-        response = requests.post(
-            f"{GEMINI_BASE_URL}?key={GEMINI_API_KEY}",
-            headers=headers,
-            data=json.dumps(payload),
-            timeout=60
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.Timeout as e:
-        raise ConnectionError(f"無法連接到 Gemini API: 超時。 {e}")
-    except requests.exceptions.RequestException as e:
-        error_message = f"呼叫 Gemini API 失敗: {e}"
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                error_message += f", API回應: {e.response.json()}"
-            except json.JSONDecodeError:
-                error_message += f", API回應文本: {e.response.text[:200]}..."
-        raise ConnectionError(f"無法連接到 Gemini API: {error_message}")
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Gemini API 回應格式不正確: {e}")
+    response = requests.post(
+        f"{GEMINI_BASE_URL}?key={GEMINI_API_KEY}",
+        headers=headers,
+        data=json.dumps(payload),
+        timeout=60
+    )
+    response.raise_for_status()
+    result = response.json()
+    if "candidates" in result and result["candidates"]:
+        content = result["candidates"][0].get("content", {})
+        parts = content.get("parts", [])
+        if parts and "text" in parts[0]:
+            return json.loads(parts[0]["text"])
+    raise ValueError("LLM 回應格式無效或為空")
 
 
 @app.route('/health', methods=['GET'])
@@ -169,35 +125,23 @@ def upload_cv():
         elif file_extension == 'docx':
             cv_content = extract_content_from_docx(file.stream)
         else:
-            return jsonify({"error": "不支援的檔案格式，請上傳 .txt, .pdf 或 .docx 檔案"}), 400
+            return jsonify({"error": "不支援的檔案格式，請上傳 txt  pdf 或 docx 檔案"}), 400
 
         if not cv_content.strip():
             return jsonify({"error": "檔案內容為空或無法提取有效文本"}), 400
 
         llm_response = call_gemini_api(cv_content)
 
-        if isinstance(llm_response, dict) and "candidates" in llm_response and \
-           len(llm_response["candidates"]) > 0 and "content" in llm_response["candidates"][0] and \
-           "parts" in llm_response["candidates"][0]["content"] and \
-           len(llm_response["candidates"][0]["content"]["parts"]) > 0:
-
-            response_text = llm_response["candidates"][0]["content"]["parts"][0]["text"]
-            parsed_llm_json = json.loads(response_text)
-
-            if "hasDiscrepancies" in parsed_llm_json and isinstance(parsed_llm_json["hasDiscrepancies"], bool) and \
-               "discrepancies" in parsed_llm_json and isinstance(parsed_llm_json["discrepancies"], list):
-                return jsonify(parsed_llm_json), 200
-            else:
-                return jsonify({"error": "LLM 回應的 JSON 結構不符預期"}), 500
-        else:
-            return jsonify({"error": "LLM 回應格式無效或為空"}), 500
+        if "hasDiscrepancies" in llm_response and isinstance(llm_response["hasDiscrepancies"], bool) and \
+           "discrepancies" in llm_response and isinstance(llm_response["discrepancies"], list):
+            return jsonify(llm_response), 200
+        return jsonify({"error": "LLM 回應的 JSON 結構不符預期"}), 500
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except ConnectionError as e:
-        return jsonify({"error": str(e)}), 503
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"連線失敗: {e}"}), 503
     except Exception as e:
-        print(f"伺服器內部錯誤: {e}")
         return jsonify({"error": f"伺服器內部錯誤: {e}"}), 500
 
 
