@@ -111,15 +111,11 @@
         <div class="flex justify-center mb-8">
             <button
                 id="verify-button"
-                class="w-full sm:w-auto px-10 py-4 rounded-xl text-xl font-bold transition duration-300 ease-in-out transform text-white shadow-lg btn-gradient relative overflow-hidden
+                class="w-full sm:w-auto px-10 py-4 rounded-xl text-xl font-bold transition duration-300 ease-in-out transform text-white shadow-lg btn-gradient
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none hover:scale-105 active:scale-95"
             >
                 <span id="button-text">驗證履歷</span>
-                <!-- Reverted SVG Spinner to simple spinning effect -->
-                <svg id="loading-spinner" class="animate-spin h-7 w-7 text-white absolute inset-1/2 -translate-x-1/2 -translate-y-1/2 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <!-- Removed loading spinner SVG -->
             </button>
         </div>
 
@@ -166,7 +162,6 @@
         const fileStatusText = document.getElementById('file-status-text'); // 新增的元素
         const verifyButton = document.getElementById('verify-button');
         const buttonText = document.getElementById('button-text'); // 新增的元素
-        const loadingSpinner = document.getElementById('loading-spinner'); // 新增的元素
         const errorMessageDiv = document.getElementById('error-message');
         const errorTextSpan = document.getElementById('error-text');
         const verificationResultSection = document.getElementById('verification-result-section');
@@ -209,12 +204,10 @@
         function updateLoadingState(loading) {
             isLoading = loading;
             if (isLoading) {
-                buttonText.classList.add('hidden'); // 隱藏文字
-                loadingSpinner.classList.remove('hidden'); // 顯示 Spinner
+                buttonText.textContent = '驗證中'; // 改變文字為「驗證中」
                 verifyButton.disabled = true; // 確保按鈕禁用
             } else {
-                buttonText.classList.remove('hidden'); // 顯示文字
-                loadingSpinner.classList.add('hidden'); // 隱藏 Spinner
+                buttonText.textContent = '驗證履歷'; // 恢復文字為「驗證履歷」
             }
             updateVerifyButtonState(); // 更新按鈕樣式 (主要是為了處理初始狀態)
         }
