@@ -1,6 +1,6 @@
 # app.py - Python Flask 後端應用程式
 
-from flask import Flask, request, jsonify # 移除 render_template
+from flask import Flask, request, jsonify
 from flask_cors import CORS # 引入 CORS 擴展以處理跨域請求
 import fitz  # PyMuPDF 用於 PDF 處理
 from docx import Document # python-docx 用於 DOCX 處理
@@ -10,7 +10,10 @@ import os # 用於讀取環境變數
 
 # 簡化 Flask app 初始化，因為它不再服務靜態文件或模板
 app = Flask(__name__)
-CORS(app) # 啟用 CORS，允許前端從不同網域發送請求
+
+# *** 將 CORS 設定為允許所有來源 ***
+# 這將允許來自任何前端網域的請求，通常用於公開 API 或動態前端 URL
+CORS(app)
 
 # 設定 Gemini API 金鑰
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
