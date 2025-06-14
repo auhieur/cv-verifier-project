@@ -20,7 +20,7 @@ GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemin
 
 # === 新增的除錯訊息 ===
 # 這個 print 語句將幫助我們確認 Render 是否載入了最新的程式碼
-print(f"DEBUG: GEMINI_BASE_URL is set to: {GEMINI_BASE_URL}")
+print(f"DEBUG:GEMINI_BASE_URL is set to: {GEMINI_BASE_URL}")
 # ========================
 
 # --- 檔案解析函數 ---
