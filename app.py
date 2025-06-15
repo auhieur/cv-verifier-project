@@ -16,8 +16,8 @@ CORS(app)
 
 # 設定 API 金鑰
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
-# 注意：此處仍使用 GEMINI_API_KEY，請確保其與新的 API (chatanywhere.org) 兼容或根據其要求調整環境變數名稱
-API_KEY = os.environ.get("GEMINI_API_KEY", "") # 從環境變數 GEMINI_API_KEY 讀取
+# 優先嘗試讀取 OPENAI_API_KEY，如果沒有則回退到 GEMINI_API_KEY
+API_KEY = os.environ.get("OPENAI_API_KEY", os.environ.get("GEMINI_API_KEY", "")) 
 
 # === 新增的除錯訊息：打印 API_KEY 的值 (除錯完成後務必移除！) ===
 print(f"DEBUG: Backend starting. API_KEY (first 5 chars): {API_KEY[:5]}... Length: {len(API_KEY)}")
@@ -75,7 +75,7 @@ def extract_content_from_docx(file_stream):
                     # 簡單地將表格單元格內容轉換為 HTML <td> 標籤
                     cell_text = ""
                     for p in cell.paragraphs:
-                        for run in p.text:
+                        for run in p.runs: # 修正這裡的 p.runs
                             cell_text += run.text
                     html_content += f"<td>{cell_text}</td>"
                 html_content += "</tr>"
@@ -93,13 +93,13 @@ def call_llm_api(cv_content):
     """呼叫 LLM API 進行履歷驗證。"""
     if not API_KEY:
         # 打印到控制台，因為這是後端錯誤
-        print("錯誤: API_KEY 環境變數未設定或為空！")
+        print("錯誤: API_KEY 環境變數未設定或為空！請確認您已在 Render 環境中設定 OPENAI_API_KEY 或 GEMINI_API_KEY。")
         raise ValueError("API_KEY 環境變數未設定。")
 
     # 針對 ChatAnywhere (OpenAI 兼容) API 調整 payload 結構
     # 您需要選擇一個 ChatAnywhere 支持的模型，例如 'gpt-3.5-turbo' 或 'gpt-4'
     # 這裡假設使用一個通用的模型，具體請根據 ChatAnywhere 文檔選擇
-    model_name = "gpt-3.5-turbo" # 替換為 ChatAnywhere 支援的模型名稱
+    model_name = "gpt-3.5-turbo" # 替換為 ChatAnywhere 支援的模型名稱，例如 'gpt-4'
 
     prompt = f"""
         您是一個專業的履歷驗證分析師。請仔細審查以下履歷內容。
@@ -161,6 +161,7 @@ def call_llm_api(cv_content):
         # 檢查 OpenAI 兼容 API 的回應結構
         if 'choices' in llm_response and len(llm_response['choices']) > 0:
             message_content = llm_response['choices'][0]['message']['content']
+            # 將 OpenAI 兼容的回應轉換回您前端期望的 Gemini 結構
             return {'candidates': [{'content': {'parts': [{'text': message_content}]}}]}
         else:
             print(f"錯誤: LLM 回應格式不符預期或為空: {llm_response}")
