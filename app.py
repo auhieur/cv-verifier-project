@@ -7,6 +7,7 @@ from docx import Document # python-docx 用於 DOCX 處理
 import requests # 用於發送 HTTP 請求給 Gemini API
 import json # 用於處理 JSON 數據
 import os # 用於讀取環境變數
+import time # 用於延遲重試
 
 # 簡化 Flask app 初始化，因為它不再服務靜態文件或模板
 app = Flask(__name__)
@@ -16,7 +17,6 @@ CORS(app)
 
 # 設定 Gemini API 金鑰
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
-# 現在只讀取 GEMINI_API_KEY
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") 
 
 # === 新增的除錯訊息：打印 GEMINI_API_KEY 的值 (除錯完成後務必移除！) ===
@@ -90,10 +90,9 @@ def extract_content_from_docx(file_stream):
 
 # --- LLM 互動函數 ---
 
-def call_gemini_api(cv_content): # 函數名改回 call_gemini_api
-    """呼叫 Gemini API 進行履歷驗證。"""
+def call_gemini_api(cv_content):
+    """呼叫 Gemini API 進行履歷驗證，包含重試邏輯。"""
     if not GEMINI_API_KEY:
-        # 打印到控制台，因為這是後端錯誤
         print("錯誤: GEMINI_API_KEY 環境變數未設定或為空！請確認您已在 Render 環境中設定 GEMINI_API_KEY。")
         raise ValueError("GEMINI_API_KEY 環境變數未設定。")
 
@@ -160,36 +159,51 @@ def call_gemini_api(cv_content): # 函數名改回 call_gemini_api
         }
     }
 
-    try:
-        # 增加 timeout 參數，設置為 60 秒
-        response = requests.post(
-            f"{_GEMINI_BASE_URL}?key={GEMINI_API_KEY}", # 改回 Gemini API 呼叫方式
-            headers=headers, 
-            data=json.dumps(payload),
-            timeout=60 # 設置請求超時為 60 秒
-        )
-        response.raise_for_status() # 如果響應狀態碼不是 2xx，則引發 HTTPError
-        
-        return response.json() # Gemini API 直接返回所需結構
+    max_retries = 3 # 最大重試次數
+    for attempt in range(max_retries):
+        try:
+            print(f"嘗試呼叫 Gemini API (第 {attempt + 1}/{max_retries} 次嘗試)...")
+            response = requests.post(
+                f"{_GEMINI_BASE_URL}?key={GEMINI_API_KEY}", 
+                headers=headers, 
+                data=json.dumps(payload),
+                timeout=60 # 設置請求超時為 60 秒
+            )
+            response.raise_for_status() # 如果響應狀態碼不是 2xx，則引發 HTTPError
+            print("Gemini API 呼叫成功。")
+            return response.json() 
 
-    except requests.exceptions.Timeout as e:
-        print(f"錯誤: 呼叫 Gemini API 超時: {e}")
-        raise ConnectionError(f"無法連接到 Gemini API: 超時。 {e}")
-    except requests.exceptions.RequestException as e:
-        # 打印更詳細的錯誤信息，包括響應文本（如果有的話）
-        error_message = f"呼叫 Gemini API 失敗: {e}"
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                error_content = e.response.json()
-                error_message += f", API回應: {error_content}"
-            except json.JSONDecodeError:
-                error_content = e.response.text
-                error_message += f", API回應文本: {error_content[:200]}..." # 只顯示前200字節
-        print(f"錯誤: {error_message}")
-        raise ConnectionError(f"無法連接到 Gemini API: {error_message}")
-    except json.JSONDecodeError as e:
-        print(f"錯誤: 解析 Gemini API 回應失敗: {e}")
-        raise ValueError(f"Gemini API 回應格式不正確: {e}")
+        except requests.exceptions.Timeout as e:
+            print(f"警告: 呼叫 Gemini API 超時 (第 {attempt + 1} 次嘗試): {e}")
+            if attempt < max_retries - 1:
+                sleep_time = 2 ** attempt # 指數退避策略
+                print(f"等待 {sleep_time} 秒後重試...")
+                time.sleep(sleep_time)
+            else:
+                raise ConnectionError(f"無法連接到 Gemini API: 超時。 (多次嘗試失敗) {e}")
+        except requests.exceptions.RequestException as e:
+            error_message = f"呼叫 Gemini API 失敗 (第 {attempt + 1} 次嘗試): {e}"
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_content = e.response.json()
+                    error_message += f", API回應: {error_content}"
+                except json.JSONDecodeError:
+                    error_content = e.response.text
+                    error_message += f", API回應文本: {error_content[:200]}..."
+            print(f"錯誤: {error_message}")
+            if attempt < max_retries - 1:
+                sleep_time = 2 ** attempt
+                print(f"等待 {sleep_time} 秒後重試...")
+                time.sleep(sleep_time)
+            else:
+                raise ConnectionError(f"無法連接到 Gemini API: {error_message} (多次嘗試失敗)")
+        except json.JSONDecodeError as e:
+            print(f"錯誤: 解析 Gemini API 回應失敗 (第 {attempt + 1} 次嘗試): {e}")
+            raise ValueError(f"Gemini API 回應格式不正確: {e}")
+    
+    # 如果所有重試都失敗，理論上應該在循環中拋出異常
+    raise ConnectionError("呼叫 Gemini API 失敗，所有重試均已用盡。")
+
 
 # --- Flask 路由 ---
 
@@ -224,7 +238,7 @@ def upload_cv():
             return jsonify({"error": "檔案內容為空或無法提取有效文本"}), 400
 
         # 將處理後的內容發送給 Gemini LLM
-        llm_response = call_gemini_api(cv_content) # 調用函數名改回 call_gemini_api
+        llm_response = call_gemini_api(cv_content)
 
         # 這裡可以加入更多對 llm_response 結構的檢查
         if isinstance(llm_response, dict) and "candidates" in llm_response and \
@@ -253,7 +267,7 @@ def upload_cv():
         return jsonify({"error": str(e)}), 503 # Service Unavailable
     except Exception as e:
         print(f"伺服器內部錯誤: {e}")
-        return jsonify({"error": f"伺服器內部錯誤: {e}"}), 500
+        return jsonify({"error": f"伺ervidor 內部錯誤: {e}"}), 500
 
 # --- 郵件設定 API 端點 ---
 @app.route('/save_mail_settings', methods=['POST'])
