@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS # 引入 CORS 擴展以處理跨域請求
 import fitz  # PyMuPDF 用於 PDF 處理
 from docx import Document # python-docx 用於 DOCX 處理
-import requests # 用於發送 HTTP 請求給 Gemini API
+import requests # 用於發送 HTTP 請求給新的 API
 import json # 用於處理 JSON 數據
 import os # 用於讀取環境變數
 
@@ -14,21 +14,21 @@ app = Flask(__name__)
 # 將 CORS 設定為允許所有來源 (用於動態 Vercel URL)
 CORS(app)
 
-# 設定 Gemini API 金鑰
+# 設定 API 金鑰
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
-# 現在只讀取 GEMINI_API_KEY
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") 
+# ChatAnywhere 服務兼容 OpenAI API，請確保您在 Render 環境中設定 OPENAI_API_KEY
+API_KEY = os.environ.get("OPENAI_API_KEY", "") 
 
-# === 新增的除錯訊息：打印 GEMINI_API_KEY 的值 (除錯完成後務必移除！) ===
+# === 新增的除錯訊息：打印 API_KEY 的值 (除錯完成後務必移除！) ===
 # 這行非常關鍵，用來檢查 Render 服務實際讀取到的 API_KEY 值
-print(f"DEBUG: Backend starting. GEMINI_API_KEY (first 5 chars): {GEMINI_API_KEY[:5]}... Length: {len(GEMINI_API_KEY)}")
+print(f"DEBUG: Backend starting. API_KEY (first 5 chars): {API_KEY[:5]}... Length: {len(API_KEY)}")
 # =========================================================================
 
-# 將 API_BASE_URL 設定為 Gemini API 端點
-_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+# 將 API_BASE_URL 設定為新的 API 端點
+_API_BASE_URL = "https://api.chatanywhere.org/v1/chat/completions" # ChatAnywhere 的標準 completions 端點
 
 # === 新增的除錯訊息 (保留以確認部署版本) ===
-print(f"DEBUG: _GEMINI_BASE_URL is set to: {_GEMINI_BASE_URL}")
+print(f"DEBUG: _API_BASE_URL is set to: {_API_BASE_URL}")
 # ===============================================
 
 # --- 檔案解析函數 ---
@@ -90,12 +90,16 @@ def extract_content_from_docx(file_stream):
 
 # --- LLM 互動函數 ---
 
-def call_gemini_api(cv_content): # 函數名改回 call_gemini_api
-    """呼叫 Gemini API 進行履歷驗證。"""
-    if not GEMINI_API_KEY:
+def call_llm_api(cv_content):
+    """呼叫 LLM API 進行履歷驗證。"""
+    if not API_KEY:
         # 打印到控制台，因為這是後端錯誤
-        print("錯誤: GEMINI_API_KEY 環境變數未設定或為空！請確認您已在 Render 環境中設定 GEMINI_API_KEY。")
-        raise ValueError("GEMINI_API_KEY 環境變數未設定。")
+        print("錯誤: API_KEY 環境變數未設定或為空！請確認您已在 Render 環境中設定 OPENAI_API_KEY。")
+        raise ValueError("API_KEY 環境變數未設定。")
+
+    # 針對 ChatAnywhere (OpenAI 兼容) API 調整 payload 結構
+    # 您需要選擇一個 ChatAnywhere 支持的模型，例如 'gpt-3.5-turbo' 或 'gpt-4'
+    model_name = "gpt-3.5-turbo" # 替換為 ChatAnywhere 支援的模型名稱
 
     prompt = f"""
         您是一個專業的履歷驗證分析師。請仔細審查以下履歷內容。
@@ -131,53 +135,44 @@ def call_gemini_api(cv_content): # 函數名改回 call_gemini_api
     """
 
     headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {API_KEY}' # OpenAI-compatible API 需要 Bearer Token 認證
     }
     payload = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "responseSchema": {
-                "type": "OBJECT",
-                "properties": {
-                    "hasDiscrepancies": {"type": "BOOLEAN"},
-                    "discrepancies": {
-                        "type": "ARRAY",
-                        "items": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "item": {"type": "STRING"},
-                                "reason": {"type": "STRING"},
-                                "organizationName": {"type": "STRING"},
-                                "organizationWebsite": {"type": "STRING"},
-                                "publicInfoLink": {"type": "STRING"}
-                            }
-                        }
-                    }
-                },
-                "required": ["hasDiscrepancies", "discrepancies"]
-            }
-        }
+        "model": model_name,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "response_format": {"type": "json_object"} # 要求模型以 JSON 格式回應
     }
 
     try:
         # 增加 timeout 參數，設置為 60 秒
         response = requests.post(
-            f"{_GEMINI_BASE_URL}?key={GEMINI_API_KEY}", # 改回 Gemini API 呼叫方式
+            _API_BASE_URL, 
             headers=headers, 
             data=json.dumps(payload),
             timeout=60 # 設置請求超時為 60 秒
         )
         response.raise_for_status() # 如果響應狀態碼不是 2xx，則引發 HTTPError
         
-        return response.json() # Gemini API 直接返回所需結構
+        llm_response = response.json()
+        
+        # 檢查 OpenAI 兼容 API 的回應結構
+        if 'choices' in llm_response and len(llm_response['choices']) > 0:
+            message_content = llm_response['choices'][0]['message']['content']
+            # 將 OpenAI 兼容的回應轉換回您前端期望的 Gemini 結構
+            return {'candidates': [{'content': {'parts': [{'text': message_content}]}}]}
+        else:
+            print(f"錯誤: LLM 回應格式不符預期或為空: {llm_response}")
+            raise ValueError("LLM 回應格式無效或為空。")
 
     except requests.exceptions.Timeout as e:
-        print(f"錯誤: 呼叫 Gemini API 超時: {e}")
-        raise ConnectionError(f"無法連接到 Gemini API: 超時。 {e}")
+        print(f"錯誤: 呼叫 LLM API 超時: {e}")
+        raise ConnectionError(f"無法連接到 LLM API: 超時。 {e}")
     except requests.exceptions.RequestException as e:
         # 打印更詳細的錯誤信息，包括響應文本（如果有的話）
-        error_message = f"呼叫 Gemini API 失敗: {e}"
+        error_message = f"呼叫 LLM API 失敗: {e}"
         if hasattr(e, 'response') and e.response is not None:
             try:
                 error_content = e.response.json()
@@ -186,10 +181,10 @@ def call_gemini_api(cv_content): # 函數名改回 call_gemini_api
                 error_content = e.response.text
                 error_message += f", API回應文本: {error_content[:200]}..." # 只顯示前200字節
         print(f"錯誤: {error_message}")
-        raise ConnectionError(f"無法連接到 Gemini API: {error_message}")
+        raise ConnectionError(f"無法連接到 LLM API: {error_message}")
     except json.JSONDecodeError as e:
-        print(f"錯誤: 解析 Gemini API 回應失敗: {e}")
-        raise ValueError(f"Gemini API 回應格式不正確: {e}")
+        print(f"錯誤: 解析 LLM API 回應失敗: {e}")
+        raise ValueError(f"LLM API 回應格式不正確: {e}")
 
 # --- Flask 路由 ---
 
@@ -223,8 +218,8 @@ def upload_cv():
         if not cv_content.strip():
             return jsonify({"error": "檔案內容為空或無法提取有效文本"}), 400
 
-        # 將處理後的內容發送給 Gemini LLM
-        llm_response = call_gemini_api(cv_content) # 調用函數名改回 call_gemini_api
+        # 將處理後的內容發送給 LLM
+        llm_response = call_llm_api(cv_content) 
 
         # 這裡可以加入更多對 llm_response 結構的檢查
         if isinstance(llm_response, dict) and "candidates" in llm_response and \
@@ -254,44 +249,6 @@ def upload_cv():
     except Exception as e:
         print(f"伺服器內部錯誤: {e}")
         return jsonify({"error": f"伺服器內部錯誤: {e}"}), 500
-
-# --- 郵件設定 API 端點 ---
-@app.route('/save_mail_settings', methods=['POST'])
-def save_mail_settings():
-    """接收前端傳來的郵件設定。實際儲存需整合持久化方案。"""
-    settings = request.json
-    if not settings:
-        return jsonify({"error": "無效的請求數據"}), 400
-    
-    # 在此處，您通常會將這些設定儲存到資料庫中。
-    # 由於 Render Web 服務的檔案系統是短暫的，我們不建議儲存到檔案。
-    # 對於實際應用，SMTP 帳密等敏感資訊應作為 Render 環境變數設定。
-    
-    print(f"DEBUG: Received mail settings from frontend: {settings}")
-    # 您可以在這裡添加驗證邏輯
-    
-    # 模擬成功接收
-    return jsonify({"message": "郵件設定已接收。", "received_settings": settings}), 200
-
-@app.route('/get_mail_settings', methods=['GET'])
-def get_mail_settings():
-    """從環境變數中獲取郵件設定。"""
-    # 實際應用中，敏感資訊應該只從環境變數讀取
-    # 這裡的範本內容是硬編碼的，如果需要永久儲存，則需要資料庫
-    current_settings = {
-        "smtpHost": os.environ.get("SMTP_HOST", ""),
-        "smtpPort": os.environ.get("SMTP_PORT", ""),
-        "smtpUsername": os.environ.get("SMTP_USERNAME", ""),
-        "smtpPassword": os.environ.get("SMTP_PASSWORD", ""), # 注意：實際不應回傳密碼
-        "senderEmail": os.environ.get("SENDER_EMAIL", ""),
-        "successSubject": "履歷驗證成功通知", # 這些目前是硬編碼的預設範本
-        "successBody": "您的履歷已成功驗證，未發現明顯疑點。",
-        "discrepancySubject": "履歷驗證發現潛在疑點",
-        "discrepancyBody": "我們在您的履歷中發現了一些潛在疑點，請登入查看詳情。"
-    }
-    print(f"DEBUG: Sending current mail settings to frontend: {current_settings}")
-    return jsonify(current_settings), 200
-
 
 # Fly.io/Render 會將請求發送到 $PORT 環境變數指定的埠號
 if __name__ == '__main__':
