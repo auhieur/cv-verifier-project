@@ -25,7 +25,7 @@ print(f"DEBUG: Backend starting. GEMINI_API_KEY (first 5 chars): {GEMINI_API_KEY
 # =========================================================================
 
 # 將 API_BASE_URL 設定為 Gemini API 端點
-_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+_GEMINI_BASE_URL = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent)"
 
 # === 新增的除錯訊息 (保留以確認部署版本) ===
 print(f"DEBUG: _GEMINI_BASE_URL is set to: {_GEMINI_BASE_URL}")
@@ -255,8 +255,13 @@ def upload_cv():
             # 修正這裡的訪問方式：從 .parts 改為 ["parts"]
             response_text = llm_response["candidates"][0]["content"]["parts"][0]["text"]
             
-            # 解析LLM回應的JSON字串
-            parsed_llm_json = json.loads(response_text)
+            # === 關鍵修正：預處理 response_text，替換雙重跳脫的換行符 ===
+            # 將 "\\n" 替換為 "\n"
+            # 將 "\\\"" 替換為 "\"" (如果模型返回了雙重跳脫的引號)
+            cleaned_response_text = response_text.replace('\\n', '\n').replace('\\"', '"')
+            
+            # 再次嘗試解析LLM回應的JSON字串
+            parsed_llm_json = json.loads(cleaned_response_text)
 
             # 進一步驗證其內部結構是否符合responseSchema
             if "hasDiscrepancies" in parsed_llm_json and isinstance(parsed_llm_json["hasDiscrepancies"], bool) and \
