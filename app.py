@@ -104,7 +104,7 @@ def call_gemini_api(cv_content):
         如果發現任何疑點或無法核實的內容，請將其標記為「疑點」。
         對於每個疑點，請提供以下資訊：
         1. 項目名稱 (item): 履歷中被質疑的具體內容。
-        2. 原因 (reason): 為什麼這是一個疑點，例如「無公開紀錄」、「資料不符」、「資訊不完整」。
+        2. 原因 (reason): 為什麼這是一個疑點，請簡潔說明，例如「無公開紀錄」、「資料不符」、「資訊不完整」。
         3. 組織名稱 (organizationName): 與該項目相關的官方組織或機構名稱。
         4. 組織網站 (organizationWebsite): 該組織的官方網站連結。
         5. 公開資訊連結 (publicInfoLink): 模擬找到的相關公開資訊連結（若有）。
@@ -112,18 +112,29 @@ def call_gemini_api(cv_content):
         請**嚴格按照以下 JSON 格式**回傳結果。
         **重要提示：`hasDiscrepancies` 欄位必須是布林值，表示是否有疑點。`discrepancies` 欄位必須是一個陣列，即使沒有疑點或沒有找到具體項目，也**必須是一個空陣列**。
 
-        {{
-          "hasDiscrepancies": boolean,
+        範例輸出 (無疑點):
+        ```json
+        {
+          "hasDiscrepancies": false,
+          "discrepancies": []
+        }
+        ```
+
+        範例輸出 (有疑點):
+        ```json
+        {
+          "hasDiscrepancies": true,
           "discrepancies": [
-            {{
-              "item": "string",
-              "reason": "string",
-              "organizationName": "string",
-              "organizationWebsite": "string",
-              "publicInfoLink": "string"
-            }}
+            {
+              "item": "國立台灣大學 電機工程學系 碩士 (2020)",
+              "reason": "無公開紀錄，請提供畢業證書掃描件。",
+              "organizationName": "國立台灣大學",
+              "organizationWebsite": "[https://www.ntu.edu.tw/](https://www.ntu.edu.tw/)",
+              "publicInfoLink": ""
+            }
           ]
-        }}
+        }
+        ```
 
         以下是履歷內容：
     """
@@ -143,6 +154,7 @@ def call_gemini_api(cv_content):
         ],
         "generationConfig": {
             "responseMimeType": "application/json",
+            "temperature": 0.2, # 降低 temperature 以獲得更穩定的輸出
             "responseSchema": {
                 "type": "OBJECT",
                 "properties": {
@@ -271,16 +283,20 @@ def upload_cv():
             # 修正這裡的訪問方式：從 .parts 改為 ["parts"]
             response_text = llm_response["candidates"][0]["content"]["parts"][0]["text"]
             
-            # === 關鍵修正：預處理 response_text，替換雙重跳脫的換行符和引號 ===
-            # 將 "\\n" 替換為 "\n"
-            # 將 "\\\"" 替換為 "\"" (如果模型返回了雙重跳脫的引號)
-            # 將 "\\" 替換為 "\" (處理其他可能的雙重跳脫反斜線)
-            # 這裡我們已經將 cv_content 作為獨立的 part 發送，理論上模型返回的 JSON 應該是乾淨的
-            # 但為了健壯性，保留對常見跳脫字元的處理
-            cleaned_response_text = response_text.replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
+            # === 關鍵修正：預處理 response_text，僅處理雙引號和換行符 ===
+            # 移除對 \\ 的處理，因為這可能導致問題
+            cleaned_response_text = response_text.replace('\\n', '\n').replace('\\"', '"')
             
             # 再次嘗試解析LLM回應的JSON字串
-            parsed_llm_json = json.loads(cleaned_response_text)
+            # 增加一個 try-except 塊來捕獲 JSON 解析錯誤，並打印導致錯誤的字串
+            try:
+                parsed_llm_json = json.loads(cleaned_response_text)
+            except json.JSONDecodeError as e:
+                print(f"錯誤: 解析 LLM 回應的 JSON 字串失敗: {e}")
+                print(f"導致錯誤的字串 (前500字元): {cleaned_response_text[:500]!r}...")
+                print(f"導致錯誤的字串長度: {len(cleaned_response_text)}")
+                raise ValueError(f"LLM 返回的 JSON 格式不正確: {e}")
+
 
             # 進一步驗證其內部結構是否符合responseSchema
             if "hasDiscrepancies" in parsed_llm_json and isinstance(parsed_llm_json["hasDiscrepancies"], bool) and \
