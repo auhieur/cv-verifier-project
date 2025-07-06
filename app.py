@@ -240,6 +240,10 @@ def upload_cv():
         # 將處理後的內容發送給 Gemini LLM
         llm_response = call_gemini_api(cv_content)
 
+        # === 新增的除錯打印：打印 LLM 原始回應結構 ===
+        print(f"DEBUG: Raw LLM Response: {json.dumps(llm_response, indent=2)}")
+        # ===============================================
+
         # 這裡可以加入更多對 llm_response 結構的檢查
         # 這是修正後的程式碼，確保使用字典鍵訪問
         if isinstance(llm_response, dict) and "candidates" in llm_response and \
