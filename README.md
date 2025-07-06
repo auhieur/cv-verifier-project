@@ -137,7 +137,7 @@
 
 **關鍵部署步驟：更新前端的後端 URL**
 
-當您的後端服務成功部署到 Railway 或其他雲平台後，它會獲得一個公開的 URL（例如：`https://your-railway-backend-name.up.railway.app`）。**您必須將這個實際的後端 URL 更新到前端 `index.html` 檔案中**，否則前端將無法連接到您的後端服務。
+當您的後端服務成功部署到Zeabur或其他雲平台後，它會獲得一個公開的 URL（例如：`https://your-railway-backend-name.up.railway.app`）。**您必須將這個實際的後端 URL 更新到前端 `index.html` 檔案中**，否則前端將無法連接到您的後端服務。
 
 打開 `index.html` 檔案，找到 `<script type="module">` 標籤內的以下這行：
 
@@ -148,7 +148,7 @@ const BACKEND_URL = ''; // 預設留空，需手動配置
 **請將 `''` (空字串) 替換為您部署後端服務的實際公開 URL。例如：**
 
 ```javascript
-const BACKEND_URL = '[https://your-railway-backend-name.up.railway.app](https://your-railway-backend-name.up.railway.app)'; // 替換為您實際的 Railway 後端 URL
+const BACKEND_URL = '[https://your-railway-backend-name.up.railway.app](https://your-railway-backend-name.up.railway.app)'; // 替換為您實際的後端 URL
 ```
 **完成修改後，請務必將更新後的 `index.html` 檔案重新提交並推送到您的 GitHub 儲存庫，以確保前端頁面使用正確的後端地址。**
 
@@ -157,7 +157,7 @@ const BACKEND_URL = '[https://your-railway-backend-name.up.railway.app](https://
 1.  **開啟應用程式：** 在瀏覽器中打開 `index.html`。
 2.  **輸入履歷內容：**
     * 您可以直接在「請在此貼上或輸入履歷內容」的文本框中輸入或貼上履歷文本。
-    * 或者，點擊「選擇檔案」按鈕，上傳您的 `.txt`、`.pdf` 或 `.docx` 格式的履歷檔案。
+    * 或者，點擊「選擇檔案」按鈕，上傳您的 `txt`、`pdf` 或 `docx` 格式的履歷檔案。
         * **注意：** 如果您同時輸入文本和上傳檔案，上傳檔案將會優先，並清空文本框內容。
 3.  **點擊驗證：** 點擊「驗證履歷」按鈕。
 4.  **查看結果：**
@@ -168,7 +168,6 @@ const BACKEND_URL = '[https://your-railway-backend-name.up.railway.app](https://
 ## 專案結構
 
 ```
-.
 ├── app.py              # Flask 後端應用程式，處理檔案上傳和 LLM 互動
 ├── index.html          # 前端使用者介面 (HTML, Tailwind CSS, JavaScript)
 ├── requirements.txt    # Python 依賴列表，列出所有必要的 Python 函式庫
@@ -183,15 +182,15 @@ const BACKEND_URL = '[https://your-railway-backend-name.up.railway.app](https://
 
 * **`GEMINI_API_KEY 環境變數未設定。`**
     * 這表示後端無法找到您的 Gemini API Key。
-    * **解決方案：** 確保您已按照「設定 Gemini API Key」步驟正確設定了環境變數。在部署到 Railway 時，請在 Railway 的環境變數設定中添加 `GEMINI_API_KEY`。
+    * **解決方案：** 確保您已按照「設定 Gemini API Key」步驟正確設定了環境變數。在部署到Zeabur時，請在環境變數設定中添加 `GEMINI_API_KEY`。
 
-* **`後端服務 URL 未配置。請在 index.html 中設定 BACKEND_URL。` (前端錯誤)**
+* **`後端服務 URL 未配置。請在 index.html 中設定 BACKEND_URL`(前端錯誤)**
     * 這表示前端的 `index.html` 中的 `BACKEND_URL` 變數仍為空字串或不正確。
-    * **解決方案：** 請按照「關鍵部署步驟：更新前端的後端 URL」中的說明，將 `index.html` 中的 `BACKEND_URL` 替換為您部署在 Railway 上的後端服務的實際公開 URL。
+    * **解決方案：** 請按照「關鍵部署步驟：更新前端的後端 URL」中的說明，將 `index.html` 中的 `BACKEND_URL` 替換為您部署在Zeabur上的後端服務的實際公開 URL。
 
 * **`API請求失敗 (狀態碼: 500)` 或 `伺服器內部錯誤`**
     * 這表示後端服務在處理請求時發生了未預期的錯誤。
-    * **解決方案：** 檢查 Railway 的部署日誌或本地運行 `app.py` 的終端機輸出，查找詳細的錯誤訊息。常見原因可能包括依賴未安裝、程式碼邏輯錯誤或與外部服務（如 Gemini API）的通訊問題。
+    * **解決方案：** 檢查部署日誌或本地運行 `app.py` 的終端機輸出，查找詳細的錯誤訊息。常見原因可能包括依賴未安裝、程式碼邏輯錯誤或與外部服務（如 Gemini API）的通訊問題。
 
 ## 貢獻
 
