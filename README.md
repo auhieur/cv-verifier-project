@@ -130,14 +130,14 @@
 本專案設計為易於部署到 Railway、Vercel (僅限前端，後端需獨立部署) 或其他 PaaS (Platform as a Service) 平台。以下是針對 Railway 的一般步驟：
 
 1.  **將專案推送到 GitHub 儲存庫：** 確保您的本地變更已提交並推送到您 Fork 的 GitHub 儲存庫。
-2.  **在 Railway 上建立新專案：** 登錄 Railway，點擊 "New Project"，選擇 "Deploy from GitHub repo"。
-3.  **連接您的 GitHub 儲存庫：** 授權 Railway 存取您的儲存庫，並選擇 `cv-verifier-project` 儲存庫。
-4.  **設定環境變數：** 在 Railway 專案設定中，導航到 "Variables" 或 "Environment Variables" 部分，添加一個名為 `GEMINI_API_KEY` 的變數，並填入您的 Gemini API Key。
-5.  **部署：** Railway 將會自動檢測您的 `requirements.txt` 和 `app.py`，並使用 Gunicorn 啟動您的 Flask 應用程式。部署完成後，Railway 會提供一個公開的 URL 給您的後端服務。
+2.  **在 Zeabur 上建立新專案：** 登錄 Zeabur，點擊 "New Project"，選擇 "Deploy from GitHub repo"。
+3.  **連接您的 GitHub 儲存庫：** 授權 Zeabur 存取您的儲存庫，並選擇 `cv-verifier-project` 儲存庫。
+4.  **設定環境變數：** 在專案設定中，導航到 "Variables" 或 "Environment Variables" 部分，添加一個名為 `GEMINI_API_KEY` 的變數，並填入您的 Gemini API Key。
+5.  **部署：** 將會自動檢測您的 `requirements.txt` 和 `app.py`，並使用 Gunicorn 啟動您的 Flask 應用程式。部署完成後，Zeabur 會提供一個公開的 URL 給您的後端服務。
 
 **關鍵部署步驟：更新前端的後端 URL**
 
-當您的後端服務成功部署到Zeabur或其他雲平台後，它會獲得一個公開的 URL（例如：`https://your-backend-name.up.app`）。**您必須將這個實際的後端 URL 更新到前端 `index.html` 檔案中**，否則前端將無法連接到您的後端服務。
+當您的後端服務成功部署到 Zeabur 或其他雲平台後，它會獲得一個公開的 URL（例如：`https://your-backend-name.up.app`）。**您必須將這個實際的後端 URL 更新到前端 `index.html` 檔案中**，否則前端將無法連接到您的後端服務。
 
 打開 `index.html` 檔案，找到 `<script type="module">` 標籤內的以下這行：
 
