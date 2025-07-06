@@ -95,7 +95,8 @@ def call_gemini_api(cv_content):
         print("錯誤: GEMINI_API_KEY 環境變數未設定或為空！請確認您已在 Railway 環境中設定 GEMINI_API_KEY。")
         raise ValueError("GEMINI_API_KEY 環境變數未設定。")
 
-    prompt = f"""
+    # 將提示指令和履歷內容分開，作為獨立的 text part
+    instruction_text = """
         您是一個專業的履歷驗證分析師。請仔細審查以下履歷內容。
         請注意，如果這是從 DOCX 文件轉換而來，內容將是 **HTML 格式**；如果是從 PDF 轉換而來，內容將嘗試保留原始的段落和行距。
         請您根據這些格式資訊來理解內容的結構（例如：標題、列表、粗體字、表格等），並識別任何潛在的造假或盜用內容，特別是關於學歷、工作經驗、比賽或獎項、證書等。
@@ -125,14 +126,21 @@ def call_gemini_api(cv_content):
         }}
 
         以下是履歷內容：
-        {cv_content}
     """
 
     headers = {
         'Content-Type': 'application/json'
     }
     payload = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": instruction_text}, # 提示指令作為一個 text part
+                    {"text": cv_content}        # 履歷內容作為另一個 text part，會被自動跳脫
+                ]
+            }
+        ],
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseSchema": {
@@ -267,6 +275,8 @@ def upload_cv():
             # 將 "\\n" 替換為 "\n"
             # 將 "\\\"" 替換為 "\"" (如果模型返回了雙重跳脫的引號)
             # 將 "\\" 替換為 "\" (處理其他可能的雙重跳脫反斜線)
+            # 這裡我們已經將 cv_content 作為獨立的 part 發送，理論上模型返回的 JSON 應該是乾淨的
+            # 但為了健壯性，保留對常見跳脫字元的處理
             cleaned_response_text = response_text.replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
             
             # 再次嘗試解析LLM回應的JSON字串
@@ -288,8 +298,6 @@ def upload_cv():
     except Exception as e:
         print(f"伺服器內部錯誤: {e}")
         return jsonify({"error": f"伺服器內部錯誤: {e}"}), 500
-
-# --- 郵件設定相關路由已移除 ---
 
 # Railway 會將請求發送到 $PORT 環境變數指定的埠號
 if __name__ == '__main__':
