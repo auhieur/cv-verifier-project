@@ -233,8 +233,8 @@ def upload_cv():
            len(llm_response["candidates"][0]["content"]["parts"]) > 0:
             
             # 從LLM回應中提取JSON字串
-            response_text = llm_response["candidates"][0]["content"].parts[0].text
-            
+           response_text = llm_response["candidates"][0]["content"]["parts"][0]["text"]
+           
             # 解析LLM回應的JSON字串
             parsed_llm_json = json.loads(response_text)
 
