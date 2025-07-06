@@ -112,7 +112,7 @@
         $env:GEMINI_API_KEY="您的_實際_GEMINI_API_KEY"
         ```
     **請務必將 `您的_實際_GEMINI_API_KEY` 替換為您從 Google AI Studio 獲取的真實 API Key。**
-    **注意：** 這種設定方式只在當前終端機會話中有效。如果您關閉終端機，需要重新設定。在部署到 Railway 等平台時，您將在該平台的配置介面中設定此環境變數。
+    **注意：** 這種設定方式只在當前終端機會話中有效。如果您關閉終端機，需要重新設定。在部署到 Zeabur 等平台時，您將在該平台的配置介面中設定此環境變數。
 
 5.  **啟動後端服務：**
     在已啟用虛擬環境的終端機中，執行以下指令啟動 Flask 後端：
@@ -125,9 +125,9 @@
     本專案的前端是一個純 HTML/JavaScript 檔案。您無需額外啟動 Web 伺服器，只需在您的瀏覽器中直接打開 `index.html` 檔案即可。
     * 例如，在檔案瀏覽器中找到 `index.html`，然後雙擊打開。
 
-## 部署到 Railway (或類似 PaaS 平台)
+## 部署到 Zeabur (或類似 PaaS 平台)
 
-本專案設計為易於部署到 Railway、Vercel (僅限前端，後端需獨立部署) 或其他 PaaS (Platform as a Service) 平台。以下是針對 Zeabur 的一般步驟：
+本專案設計為易於部署到 Zeabur、Vercel (僅限前端，後端需獨立部署) 或其他 PaaS (Platform as a Service) 平台。以下是針對 Zeabur 的一般步驟：
 
 1.  **將專案推送到 GitHub 儲存庫：** 確保您的本地變更已提交並推送到您 Fork 的 GitHub 儲存庫。
 2.  **在 Zeabur 上建立新專案：** 登錄 Zeabur，點擊 "New Project"，選擇 "Deploy from GitHub repo"，"或是一鍵部屬"。
