@@ -127,7 +127,7 @@
 
 ## 部署到 Railway (或類似 PaaS 平台)
 
-本專案設計為易於部署到 Railway、Vercel (僅限前端，後端需獨立部署) 或其他 PaaS (Platform as a Service) 平台。以下是針對 Railway 的一般步驟：
+本專案設計為易於部署到 Railway、Vercel (僅限前端，後端需獨立部署) 或其他 PaaS (Platform as a Service) 平台。以下是針對 Zeabur 的一般步驟：
 
 1.  **將專案推送到 GitHub 儲存庫：** 確保您的本地變更已提交並推送到您 Fork 的 GitHub 儲存庫。
 2.  **在 Zeabur 上建立新專案：** 登錄 Zeabur，點擊 "New Project"，選擇 "Deploy from GitHub repo"，"或是一鍵部屬"。
