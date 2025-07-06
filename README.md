@@ -227,4 +227,4 @@ const BACKEND_URL = '[https://your-railway-backend-name.up.railway.app](https://
 
 ## 許可協議
 
-本專案根據 **Apache-2.0 許可協議** 發布。這意味著您可以自由地使用、修改和分發本專案，但需遵守許可協議中的條款。詳情請參閱專案根目錄下的 `LICENSE` 檔案
+本專案根據 **Apache-2.0 許可協議** 發布，這意味著您可以自由地使用、修改和分發本專案，但需遵守許可協議中的條款。詳情請參閱專案根目錄下的 `LICENSE` 檔案。
