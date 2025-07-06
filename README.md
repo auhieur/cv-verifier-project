@@ -137,7 +137,7 @@
 
 **關鍵部署步驟：更新前端的後端 URL**
 
-當您的後端服務成功部署到Zeabur或其他雲平台後，它會獲得一個公開的 URL（例如：`https://your-railway-backend-name.up.railway.app`）。**您必須將這個實際的後端 URL 更新到前端 `index.html` 檔案中**，否則前端將無法連接到您的後端服務。
+當您的後端服務成功部署到Zeabur或其他雲平台後，它會獲得一個公開的 URL（例如：`https://your-backend-name.up.app`）。**您必須將這個實際的後端 URL 更新到前端 `index.html` 檔案中**，否則前端將無法連接到您的後端服務。
 
 打開 `index.html` 檔案，找到 `<script type="module">` 標籤內的以下這行：
 
@@ -148,7 +148,7 @@ const BACKEND_URL = ''; // 預設留空，需手動配置
 **請將 `''` (空字串) 替換為您部署後端服務的實際公開 URL。例如：**
 
 ```javascript
-const BACKEND_URL = '[https://your-railway-backend-name.up.railway.app](https://your-railway-backend-name.up.railway.app)'; // 替換為您實際的後端 URL
+const BACKEND_URL = '[https://your-backend-name.up.app](https://your-backend-name.up.app)'; // 替換為您實際的後端 URL
 ```
 **完成修改後，請務必將更新後的 `index.html` 檔案重新提交並推送到您的 GitHub 儲存庫，以確保前端頁面使用正確的後端地址。**
 
