@@ -19,16 +19,15 @@ CORS(app)
 # 在生產環境中，請務必從環境變數中讀取 API 金鑰，不要硬編碼！
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") 
 
-# === 新增的除錯訊息：打印 GEMINI_API_KEY 的值 (除錯完成後務必移除！) ===
-# 這行非常關鍵，用來檢查 Railway 服務實際讀取到的 API_KEY 值
+# === 新增的除錯訊息：打印 GEMINI_API_KEY 的值 (使用 !r 顯示原始字串) ===
 print(f"DEBUG: Backend starting. GEMINI_API_KEY (first 5 chars): {GEMINI_API_KEY[:5]}... Length: {len(GEMINI_API_KEY)}")
 # =========================================================================
 
 # 將 API_BASE_URL 設定為 Gemini API 端點
-_GEMINI_BASE_URL = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent)"
+_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
-# === 新增的除錯訊息 (保留以確認部署版本) ===
-print(f"DEBUG: _GEMINI_BASE_URL is set to: {_GEMINI_BASE_URL}")
+# === 新增的除錯訊息 (保留以確認部署版本，使用 !r 顯示原始字串) ===
+print(f"DEBUG: _GEMINI_BASE_URL is set to: {_GEMINI_BASE_URL!r}")
 # ===============================================
 
 # --- 檔案解析函數 ---
@@ -162,9 +161,18 @@ def call_gemini_api(cv_content):
     max_retries = 3 # 最大重試次數
     for attempt in range(max_retries):
         try:
-            print(f"嘗試呼叫 Gemini API (第 {attempt + 1}/{max_retries} 次嘗試)...")
+            # 確保 URL 和金鑰沒有前後空白字元
+            base_url_clean = _GEMINI_BASE_URL.strip()
+            api_key_clean = GEMINI_API_KEY.strip()
+            
+            full_api_url = f"{base_url_clean}?key={api_key_clean}"
+            
+            # === 新增的除錯打印：打印最終的 URL 字串的原始表示 ===
+            print(f"DEBUG: Attempting to call Gemini API at URL: {full_api_url!r} (Attempt {attempt + 1}/{max_retries})")
+            # ===============================================
+
             response = requests.post(
-                f"{_GEMINI_BASE_URL}?key={GEMINI_API_KEY}", 
+                full_api_url, # 使用清理過的 URL
                 headers=headers, 
                 data=json.dumps(payload),
                 timeout=60 # 設置請求超時為 60 秒
@@ -255,10 +263,11 @@ def upload_cv():
             # 修正這裡的訪問方式：從 .parts 改為 ["parts"]
             response_text = llm_response["candidates"][0]["content"]["parts"][0]["text"]
             
-            # === 關鍵修正：預處理 response_text，替換雙重跳脫的換行符 ===
+            # === 關鍵修正：預處理 response_text，替換雙重跳脫的換行符和引號 ===
             # 將 "\\n" 替換為 "\n"
             # 將 "\\\"" 替換為 "\"" (如果模型返回了雙重跳脫的引號)
-            cleaned_response_text = response_text.replace('\\n', '\n').replace('\\"', '"')
+            # 將 "\\" 替換為 "\" (處理其他可能的雙重跳脫反斜線)
+            cleaned_response_text = response_text.replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
             
             # 再次嘗試解析LLM回應的JSON字串
             parsed_llm_json = json.loads(cleaned_response_text)
